@@ -1,0 +1,1919 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-ui-style="medical">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>H2Former — 医学影像智能分割系统</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <style>
+    /* ─── CSS Variables (Light Theme Fixed) ────────────── */
+    :root {
+      --bg-primary: #f0f4ff;
+      --bg-secondary: #e8edf8;
+      --bg-card: rgba(255, 255, 255, 0.9);
+      --bg-glass: rgba(59, 130, 246, 0.06);
+      --accent-cyan: #2563eb;
+      --accent-blue: #1e40af;
+      --accent-purple: #4f46e5;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-orange: #f97316;
+      --accent-gradient: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+      --text-primary: #0a0f1e;
+      --text-secondary: #3b5280;
+      --text-muted: #7a9ab8;
+      --border: rgba(59, 130, 246, 0.15);
+      --border-bright: rgba(37, 99, 235, 0.6);
+      --shadow-glow: 0 0 50px rgba(37, 99, 235, 0.25);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+      --radius-2xl: 32px;
+      --transition: 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    /* ─── UI Style Themes ───────────────────────────────── */
+    [data-ui-style="medical"] {
+      --accent-cyan: #2563eb;
+      --accent-blue: #1e40af;
+      --accent-purple: #4f46e5;
+      --accent-orange: #f59e0b;
+      --accent-gradient: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+      --border-bright: rgba(37, 99, 235, 0.6);
+      --shadow-glow: 0 0 50px rgba(37, 99, 235, 0.25);
+    }
+
+    /* ─── Reset & Base ──────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+    ::selection { background: rgba(0, 212, 255, 0.25); color: var(--text-primary); }
+
+    /* ─── Scrollbar ─────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-primary); }
+    ::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 3px; }
+
+    /* ─── Navigation ────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 48px;
+      background: rgba(240, 244, 255, 0.85);
+      backdrop-filter: blur(24px) saturate(180%);
+      border-bottom: 1px solid var(--border);
+      transition: var(--transition);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 800; font-size: 20px;
+      background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      text-decoration: none; letter-spacing: -0.5px;
+    }
+    .nav-logo-icon {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: var(--accent-gradient);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    .nav-links { display: flex; align-items: center; gap: 32px; list-style: none; }
+    .nav-links a {
+      color: var(--text-secondary); text-decoration: none; font-size: 14px; font-weight: 500;
+      transition: color var(--transition); position: relative; display: inline-block;
+    }
+    .nav-links a::after {
+      content: ''; position: absolute; bottom: -2px; left: 0; right: 0;
+      height: 2px; background: var(--accent-gradient);
+      transform: scaleX(0); transition: transform var(--transition);
+      border-radius: 1px;
+    }
+    .nav-links a:hover { color: var(--accent-cyan); }
+    .nav-links a:hover::after { transform: scaleX(1); }
+    .nav-links a.active { color: var(--accent-cyan); }
+    .nav-links a.active::after { transform: scaleX(1); }
+    .nav-actions { display: flex; align-items: center; gap: 12px; }
+    .btn-primary {
+      padding: 8px 20px; border-radius: 10px; font-size: 13px; font-weight: 600;
+      background: var(--accent-gradient); color: #fff; border: none; cursor: pointer;
+      transition: all var(--transition); text-decoration: none; display: inline-block;
+      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+    }
+    .btn-primary:hover { opacity: 0.95; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(59, 130, 246, 0.5); }
+
+    /* ─── Hero Section ──────────────────────────────────── */
+    #hero {
+      position: relative; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; padding-top: 80px;
+    }
+    #hero-canvas {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      pointer-events: none; opacity: 0.7;
+    }
+    .hero-content {
+      position: relative; z-index: 2; text-align: center;
+      max-width: 900px; padding: 0 24px;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 16px; border-radius: 100px;
+      background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.3);
+      font-size: 12px; font-weight: 600; color: var(--accent-cyan);
+      margin-bottom: 28px; letter-spacing: 1px; text-transform: uppercase;
+      animation: fadeInDown 0.8s ease both;
+    }
+    .hero-badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent-cyan); animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .hero-title {
+      font-size: clamp(42px, 6vw, 80px); font-weight: 900; line-height: 1.05;
+      letter-spacing: -2px; margin-bottom: 24px;
+      animation: fadeInUp 0.8s 0.1s ease both;
+    }
+    .hero-title-gradient {
+      background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero-subtitle {
+      font-size: clamp(16px, 2vw, 20px); color: var(--text-secondary); line-height: 1.8;
+      max-width: 680px; margin: 0 auto 40px;
+      animation: fadeInUp 0.8s 0.2s ease both;
+    }
+    .hero-meta {
+      display: flex; justify-content: center; gap: 32px; flex-wrap: wrap; margin-bottom: 48px;
+      animation: fadeInUp 0.8s 0.3s ease both;
+    }
+    .hero-meta-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--text-secondary);
+    }
+    .hero-meta-item span.tag {
+      padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700;
+      background: rgba(59, 130, 246, 0.15); color: var(--accent-blue);
+    }
+    .hero-ctas {
+      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+      animation: fadeInUp 0.8s 0.4s ease both;
+    }
+    .btn-hero-primary {
+      padding: 14px 32px; border-radius: 14px; font-size: 15px; font-weight: 700;
+      background: var(--accent-gradient); color: #fff; border: none; cursor: pointer;
+      transition: all var(--transition); box-shadow: 0 4px 24px rgba(59, 130, 246, 0.35);
+      text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-hero-primary:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(59, 130, 246, 0.5); }
+    .btn-hero-secondary {
+      padding: 14px 32px; border-radius: 14px; font-size: 15px; font-weight: 700;
+      background: transparent; color: var(--text-primary);
+      border: 1px solid var(--border-bright); cursor: pointer;
+      transition: all var(--transition); text-decoration: none;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-hero-secondary:hover {
+      background: rgba(0, 212, 255, 0.08); border-color: var(--accent-cyan);
+      transform: translateY(-3px);
+    }
+    .hero-stats {
+      position: absolute; bottom: 48px; left: 0; right: 0;
+      display: flex; justify-content: center; gap: 64px; flex-wrap: wrap;
+      animation: fadeIn 1.2s 0.6s ease both;
+    }
+    .hero-stat { text-align: center; }
+    .hero-stat-number {
+      font-size: 36px; font-weight: 900; letter-spacing: -1px;
+      background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero-stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+
+    /* ─── Section Base ──────────────────────────────────── */
+    section { padding: 120px 48px; }
+    .section-header { text-align: center; margin-bottom: 72px; }
+    .section-eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--accent-cyan); margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(32px, 4vw, 56px); font-weight: 900;
+      letter-spacing: -1.5px; line-height: 1.15; margin-bottom: 16px;
+    }
+    .section-desc { font-size: 17px; color: var(--text-secondary); max-width: 560px; margin: 0 auto; line-height: 1.7; }
+
+    /* ─── Glass Card ────────────────────────────────────── */
+    .glass-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .glass-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.02) 50%, transparent 100%);
+      opacity: 0; transition: opacity var(--transition);
+      pointer-events: none;
+    }
+    .glass-card:hover::before { opacity: 1; }
+    .glass-card:hover {
+      border-color: var(--border-bright);
+      box-shadow: var(--shadow-glow);
+      transform: translateY(-6px) scale(1.01);
+    }
+
+    /* ─── Features Grid ─────────────────────────────────── */
+    #features { background: var(--bg-secondary); }
+    .features-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 28px; max-width: 1200px; margin: 0 auto;
+    }
+    .feature-card {
+      padding: 36px; border-radius: var(--radius-xl);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      transition: all var(--transition);
+      position: relative; overflow: hidden;
+    }
+    .feature-card:hover {
+      border-color: var(--border-bright);
+      box-shadow: var(--shadow-glow);
+      transform: translateY(-8px) scale(1.01);
+    }
+    .feature-icon {
+      width: 60px; height: 60px; border-radius: 16px; margin-bottom: 20px;
+      display: flex; align-items: center; justify-content: center; font-size: 24px;
+      transition: transform var(--transition);
+    }
+    .feature-card:hover .feature-icon { transform: scale(1.1); }
+    .feature-title { font-size: 18px; font-weight: 800; margin-bottom: 10px; line-height: 1.3; }
+    .feature-desc { font-size: 14px; color: var(--text-secondary); line-height: 1.8; }
+
+    /* ─── Architecture Section ──────────────────────────── */
+    #architecture { background: var(--bg-primary); }
+    .arch-container { max-width: 1200px; margin: 0 auto; }
+    .arch-diagram {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 40px 32px;
+      overflow-x: auto;
+    }
+    .arch-flow {
+      display: flex; align-items: stretch; gap: 0; min-width: 900px;
+      justify-content: center;
+    }
+    .arch-stage {
+      flex: 1; display: flex; flex-direction: column; align-items: center; position: relative;
+    }
+    .arch-stage-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 12px;
+    }
+    .arch-block {
+      width: 100%; padding: 14px 8px; border-radius: 12px; text-align: center;
+      font-size: 12px; font-weight: 600; color: #fff;
+      position: relative; cursor: pointer;
+      transition: all var(--transition);
+    }
+    .arch-block:hover { transform: scale(1.05); }
+    .arch-block.encoder { background: linear-gradient(135deg, #1e40af, #3b82f6); }
+    .arch-block.hybrid { background: linear-gradient(135deg, #6d28d9, #8b5cf6); }
+    .arch-block.decoder { background: linear-gradient(135deg, #065f46, #10b981); }
+    .arch-block.output { background: linear-gradient(135deg, #92400e, #f59e0b); }
+    .arch-block.input { background: linear-gradient(135deg, #1f2937, #4b5563); }
+    .arch-arrow {
+      display: flex; align-items: center; padding: 0 6px; color: var(--text-muted); font-size: 18px;
+    }
+    .arch-block-sub { font-size: 10px; opacity: 0.8; margin-top: 4px; }
+    .arch-legend {
+      display: flex; gap: 20px; flex-wrap: wrap; margin-top: 24px; justify-content: center;
+    }
+    .arch-legend-item {
+      display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary);
+    }
+    .arch-legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+    /* HTB Detail */
+    .htb-detail {
+      margin-top: 36px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 18px;
+    }
+    .htb-block {
+      padding: 24px; border-radius: 14px;
+      background: var(--bg-glass); border: 1px solid var(--border);
+      text-align: center; transition: all var(--transition);
+      backdrop-filter: blur(8px);
+    }
+    .htb-block:hover { border-color: var(--border-bright); transform: translateY(-4px); }
+    .htb-block-icon { font-size: 32px; margin-bottom: 12px; transition: transform var(--transition); }
+    .htb-block:hover .htb-block-icon { transform: scale(1.2); }
+    .htb-block-title { font-size: 13px; font-weight: 800; margin-bottom: 6px; }
+    .htb-block-desc { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+
+    /* ─── Demo Section ──────────────────────────────────── */
+    #demo { background: var(--bg-secondary); }
+    .demo-container { max-width: 1100px; margin: 0 auto; }
+    .demo-layout {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
+    }
+    @media (max-width: 768px) {
+      .demo-layout { grid-template-columns: 1fr; }
+      nav { padding: 14px 20px; }
+      .nav-links { display: none; }
+      section { padding: 60px 20px; }
+      .hero-stats { gap: 32px; bottom: 24px; }
+    }
+    .demo-panel {
+      padding: 28px; border-radius: var(--radius-xl);
+      background: var(--bg-card); border: 1px solid var(--border);
+    }
+    .demo-panel-title {
+      font-size: 13px; font-weight: 700; color: var(--text-secondary);
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .demo-panel-title::before {
+      content: ''; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent-cyan); display: block;
+    }
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 14px; padding: 48px 24px;
+      text-align: center; cursor: pointer; transition: all var(--transition);
+      position: relative; overflow: hidden;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 212, 255, 0.05);
+    }
+    .upload-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.7; }
+    .upload-text { font-size: 14px; color: var(--text-secondary); margin-bottom: 8px; }
+    .upload-hint { font-size: 12px; color: var(--text-muted); }
+    .upload-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .sample-images {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px;
+    }
+    .sample-img-btn {
+      border-radius: 10px; border: 2px solid var(--border); overflow: hidden;
+      cursor: pointer; transition: all var(--transition); background: none; padding: 0;
+      aspect-ratio: 1; position: relative;
+    }
+    .sample-img-btn:hover { border-color: var(--accent-cyan); transform: scale(1.05); }
+    .sample-img-btn.active { border-color: var(--accent-cyan); box-shadow: 0 0 0 3px rgba(0,212,255,0.2); }
+    .sample-canvas { width: 100%; height: 100%; display: block; }
+    .seg-result-area {
+      position: relative; border-radius: 14px; overflow: hidden;
+      background: #000; aspect-ratio: 1; border: 1px solid var(--border);
+    }
+    #seg-canvas { width: 100%; height: 100%; display: block; }
+    .seg-overlay-info {
+      position: absolute; bottom: 12px; left: 12px; right: 12px;
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .seg-tag {
+      padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700;
+      backdrop-filter: blur(10px);
+    }
+    .seg-tag.ex { background: rgba(239, 68, 68, 0.8); color: #fff; }
+    .seg-tag.he { background: rgba(249, 115, 22, 0.8); color: #fff; }
+    .seg-tag.ma { background: rgba(234, 179, 8, 0.8); color: #fff; }
+    .seg-tag.se { background: rgba(34, 197, 94, 0.8); color: #fff; }
+
+    .metrics-row {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px;
+    }
+    .metric-card {
+      padding: 14px; border-radius: 12px;
+      background: var(--bg-glass); border: 1px solid var(--border);
+      text-align: center;
+    }
+    .metric-value { font-size: 22px; font-weight: 800; }
+    .metric-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-top: 2px; }
+
+    .process-btn {
+      width: 100%; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 700;
+      background: var(--accent-gradient); color: #fff; border: none; cursor: pointer;
+      transition: all var(--transition); margin-top: 16px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .process-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(59, 130, 246, 0.4); }
+    .process-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .seg-type-selector {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px;
+    }
+    .seg-type-btn {
+      padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+      border: 1px solid var(--border); background: transparent; color: var(--text-secondary);
+      cursor: pointer; transition: all var(--transition);
+    }
+    .seg-type-btn.active {
+      background: var(--accent-blue); color: #fff; border-color: var(--accent-blue);
+    }
+    .seg-type-btn:hover:not(.active) { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+
+    /* ─── Performance Charts ────────────────────────────── */
+    #performance { background: var(--bg-primary); }
+    .perf-container { max-width: 1200px; margin: 0 auto; }
+    .charts-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 24px;
+    }
+    .chart-card {
+      padding: 28px; border-radius: var(--radius-xl);
+      background: var(--bg-card); border: 1px solid var(--border);
+    }
+    .chart-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .chart-subtitle { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
+    .chart-wrapper { position: relative; height: 220px; }
+
+    /* Comparison Table */
+    .compare-table-wrap {
+      overflow-x: auto; margin-top: 32px;
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border);
+    }
+    .compare-table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+      min-width: 700px;
+    }
+    .compare-table th {
+      padding: 14px 20px; text-align: left;
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--text-secondary); font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .compare-table td {
+      padding: 12px 20px; border-bottom: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .compare-table tr:hover td { background: var(--bg-glass); }
+    .compare-table tr.highlight td { background: rgba(0, 212, 255, 0.06); }
+    .compare-table tr.highlight td:first-child { font-weight: 800; color: var(--accent-cyan); }
+    .best-value { color: var(--accent-green); font-weight: 700; }
+
+    /* ─── Datasets Section ──────────────────────────────── */
+    #datasets { background: var(--bg-secondary); }
+    .datasets-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px; max-width: 1100px; margin: 0 auto;
+    }
+    .dataset-card {
+      padding: 28px; border-radius: var(--radius-xl);
+      background: var(--bg-card); border: 1px solid var(--border);
+      transition: all var(--transition);
+    }
+    .dataset-card:hover {
+      border-color: var(--border-bright);
+      transform: translateY(-4px); box-shadow: var(--shadow-glow);
+    }
+    .dataset-icon {
+      width: 48px; height: 48px; border-radius: 12px; margin-bottom: 16px;
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .dataset-name { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
+    .dataset-desc { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6; }
+    .dataset-stats { display: flex; gap: 16px; flex-wrap: wrap; }
+    .dataset-stat { font-size: 12px; color: var(--text-muted); }
+    .dataset-stat strong { color: var(--accent-blue); font-size: 15px; }
+
+    /* ─── Tech Stack ────────────────────────────────────── */
+    #tech { background: var(--bg-primary); }
+    .tech-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px; max-width: 960px; margin: 0 auto;
+    }
+    .tech-card {
+      padding: 24px; border-radius: var(--radius-lg);
+      background: var(--bg-glass); border: 1px solid var(--border);
+      text-align: center; transition: all var(--transition);
+    }
+    .tech-card:hover { border-color: var(--border-bright); transform: translateY(-4px); }
+    .tech-logo { font-size: 36px; margin-bottom: 10px; }
+    .tech-name { font-size: 14px; font-weight: 700; }
+    .tech-role { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ─── Footer ────────────────────────────────────────── */
+    footer {
+      padding: 48px;
+      border-top: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center;
+      gap: 16px; text-align: center;
+      background: var(--bg-secondary);
+    }
+    .footer-logo {
+      font-size: 22px; font-weight: 900;
+      background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .footer-text { font-size: 13px; color: var(--text-muted); line-height: 1.8; }
+    .footer-badge {
+      padding: 6px 16px; border-radius: 100px;
+      background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2);
+      font-size: 11px; color: var(--accent-blue); font-weight: 600;
+    }
+
+    /* ─── Loading Spinner ───────────────────────────────── */
+    .spinner {
+      width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Scroll-in animations ──────────────────────────── */
+    .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.7s ease, transform 0.7s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ─── Progress Bar ──────────────────────────────────── */
+    .progress-bar-wrap {
+      height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 12px;
+    }
+    .progress-bar-fill {
+      height: 100%; border-radius: 2px;
+      background: var(--accent-gradient);
+      transition: width 1.5s ease;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════ NAV ═══════════════════ -->
+<nav id="main-nav">
+  <a href="#hero" class="nav-logo">
+    <div class="nav-logo-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+      </svg>
+    </div>
+    H2Former
+  </a>
+  <ul class="nav-links">
+    <li><a href="#features">特性</a></li>
+    <li><a href="#architecture">架构</a></li>
+    <li><a href="#demo">在线演示</a></li>
+    <li><a href="#performance">性能评估</a></li>
+    <li><a href="#datasets">数据集</a></li>
+  </ul>
+  <div class="nav-actions">
+    <a href="https://github.com/NKUhealong/H2Former" target="_blank" class="btn-primary">GitHub →</a>
+  </div>
+</nav>
+
+<!-- ═══════════════════ HERO ════════════════════ -->
+<section id="hero">
+  <canvas id="hero-canvas"></canvas>
+  <div class="hero-content">
+    <div class="hero-badge">
+      <span class="hero-badge-dot"></span>
+      IEEE Trans. Medical Imaging 2023 · Vol.42 No.9
+    </div>
+    <h1 class="hero-title">
+      <span class="hero-title-gradient">H2Former</span><br/>医学影像智能分割系统
+    </h1>
+    <p class="hero-subtitle">
+      基于高效层次混合Transformer架构，融合卷积神经网络局部特征提取能力与Transformer全局长程依赖建模优势，
+      在五大医学影像分割基准上超越现有方法，参数量更小、精度更高。
+    </p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="tag">ResNet-34</span> 局部特征编码器
+      </div>
+      <div class="hero-meta-item">
+        <span class="tag">Swin-T</span> 全局注意力模块
+      </div>
+      <div class="hero-meta-item">
+        <span class="tag">MSCA</span> 多尺度通道注意力
+      </div>
+      <div class="hero-meta-item">
+        <span class="tag">HTB</span> 层次混合Transformer块
+      </div>
+    </div>
+    <div class="hero-ctas">
+      <a href="#demo" class="btn-hero-primary">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <polygon points="5,3 19,12 5,21"/>
+        </svg>
+        立即体验演示
+      </a>
+      <a href="#architecture" class="btn-hero-secondary">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        了解架构
+      </a>
+    </div>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-number" data-count="91.2">0</div>
+      <div class="hero-stat-label">Dice Score (%) · 皮肤病变</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-number" data-count="5">0</div>
+      <div class="hero-stat-label">支持分割任务</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-number" data-count="28.5">0</div>
+      <div class="hero-stat-label">模型参数量 (M)</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-number" data-count="84.7">0</div>
+      <div class="hero-stat-label">DSC (%) · 多器官分割</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ FEATURES ══════════════════ -->
+<section id="features">
+  <div class="section-header reveal">
+    <div class="section-eyebrow">核心优势</div>
+    <h2 class="section-title">为什么选择 H2Former？</h2>
+    <p class="section-desc">整合CNN与Transformer的双重优势，专为医学影像低数据场景优化设计</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card reveal">
+      <div class="feature-icon" style="background:rgba(59,130,246,0.15)">🔬</div>
+      <div class="feature-title">层次混合Transformer块 (HTB)</div>
+      <div class="feature-desc">同时捕获局部空间关系、全局特征编码和多尺度通道注意力，将三类特征融合到统一模块，学习更优的病灶特征表征。</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon" style="background:rgba(139,92,246,0.15)">🧠</div>
+      <div class="feature-title">多尺度通道注意力 (MSCA)</div>
+      <div class="feature-desc">利用ECA-Net高效通道注意力机制，在不同分辨率尺度上自适应地对关键通道加权，有效应对不同大小和形状的病灶变化。</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon" style="background:rgba(16,185,129,0.15)">🎯</div>
+      <div class="feature-title">Patch Expanding解码路径</div>
+      <div class="feature-desc">采用创新的Patch Expanding上采样策略替代传统转置卷积，在Transformer解码器中精准恢复高分辨率特征图，保留细粒度边缘信息。</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon" style="background:rgba(239,68,68,0.15)">⚡</div>
+      <div class="feature-title">数据高效 · 低数据场景适配</div>
+      <div class="feature-desc">CNN的归纳偏置与ImageNet预训练相结合，使模型在有限医学标注数据下快速收敛，显著优于纯Transformer方案。</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon" style="background:rgba(245,158,11,0.15)">📊</div>
+      <div class="feature-title">2D & 3D 双模态支持</div>
+      <div class="feature-desc">统一架构同时支持2D（视网膜/皮肤/息肉）和3D（心脏ACDC/腹部Synapse）医学影像分割任务，无需独立设计模型。</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon" style="background:rgba(0,212,255,0.12)">🏆</div>
+      <div class="feature-title">SOTA性能 · 五大基准超越</div>
+      <div class="feature-desc">在IDRiD、ISIC2016、Kvasir-SEG、ACDC、Synapse五个权威数据集上全面超越TransUNet、Swin-UNet等最新方法，性能领先显著。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ ARCHITECTURE ════════════════ -->
+<section id="architecture">
+  <div class="arch-container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">网络架构</div>
+      <h2 class="section-title">H2Former 架构全景</h2>
+      <p class="section-desc">层次化编解码器设计，在四个分辨率尺度上并行运行CNN与Transformer分支</p>
+    </div>
+
+    <div class="arch-diagram reveal">
+      <div class="arch-flow">
+        <!-- Input -->
+        <div class="arch-stage" style="max-width:110px">
+          <div class="arch-stage-label">输入</div>
+          <div class="arch-block input" style="padding:20px 8px">
+            <div>医学影像</div>
+            <div class="arch-block-sub">H×W×C</div>
+          </div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <!-- Encoder -->
+        <div class="arch-stage">
+          <div class="arch-stage-label">编码器 (ResNet-34)</div>
+          <div style="display:flex;flex-direction:column;gap:6px;width:100%">
+            <div class="arch-block encoder" style="opacity:1">Stage 1 <span class="arch-block-sub">64ch · H/2</span></div>
+            <div class="arch-block encoder" style="opacity:0.85">Stage 2 <span class="arch-block-sub">128ch · H/4</span></div>
+            <div class="arch-block encoder" style="opacity:0.7">Stage 3 <span class="arch-block-sub">256ch · H/8</span></div>
+            <div class="arch-block encoder" style="opacity:0.55">Stage 4 <span class="arch-block-sub">512ch · H/16</span></div>
+          </div>
+        </div>
+        <div class="arch-arrow">⊕</div>
+        <!-- HTB -->
+        <div class="arch-stage">
+          <div class="arch-stage-label">HTB (Hybrid Transformer Block)</div>
+          <div style="display:flex;flex-direction:column;gap:6px;width:100%">
+            <div class="arch-block hybrid">HTB-1 <span class="arch-block-sub">MSCA + W-MSA</span></div>
+            <div class="arch-block hybrid">HTB-2 <span class="arch-block-sub">MSCA + W-MSA</span></div>
+            <div class="arch-block hybrid">HTB-3 <span class="arch-block-sub">MSCA + SW-MSA</span></div>
+            <div class="arch-block hybrid">HTB-4 <span class="arch-block-sub">MSCA + SW-MSA</span></div>
+          </div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <!-- Decoder -->
+        <div class="arch-stage">
+          <div class="arch-stage-label">解码器 (Patch Expanding)</div>
+          <div style="display:flex;flex-direction:column;gap:6px;width:100%">
+            <div class="arch-block decoder" style="opacity:0.55">Expand 4 <span class="arch-block-sub">Skip + ×2 Up</span></div>
+            <div class="arch-block decoder" style="opacity:0.7">Expand 3 <span class="arch-block-sub">Skip + ×2 Up</span></div>
+            <div class="arch-block decoder" style="opacity:0.85">Expand 2 <span class="arch-block-sub">Skip + ×2 Up</span></div>
+            <div class="arch-block decoder" style="opacity:1">Expand 1 <span class="arch-block-sub">Skip + ×2 Up</span></div>
+          </div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <!-- Output -->
+        <div class="arch-stage" style="max-width:110px">
+          <div class="arch-stage-label">输出</div>
+          <div class="arch-block output" style="padding:20px 8px">
+            <div>分割掩码</div>
+            <div class="arch-block-sub">H×W×K</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arch-legend">
+        <div class="arch-legend-item">
+          <div class="arch-legend-dot" style="background:linear-gradient(135deg,#1e40af,#3b82f6)"></div>
+          CNN编码器 (ResNet-34)
+        </div>
+        <div class="arch-legend-item">
+          <div class="arch-legend-dot" style="background:linear-gradient(135deg,#6d28d9,#8b5cf6)"></div>
+          层次混合Transformer块 (HTB)
+        </div>
+        <div class="arch-legend-item">
+          <div class="arch-legend-dot" style="background:linear-gradient(135deg,#065f46,#10b981)"></div>
+          Patch Expanding解码器
+        </div>
+        <div class="arch-legend-item">
+          <div class="arch-legend-dot" style="background:linear-gradient(135deg,#92400e,#f59e0b)"></div>
+          分割输出头
+        </div>
+      </div>
+
+      <!-- HTB Detail -->
+      <div class="htb-detail">
+        <div class="htb-block">
+          <div class="htb-block-icon">🔷</div>
+          <div class="htb-block-title">W-MSA</div>
+          <div class="htb-block-desc">窗口多头自注意力<br/>建模局部空间关系</div>
+        </div>
+        <div class="htb-block">
+          <div class="htb-block-icon">🔶</div>
+          <div class="htb-block-title">SW-MSA</div>
+          <div class="htb-block-desc">移位窗口注意力<br/>跨窗口全局交互</div>
+        </div>
+        <div class="htb-block">
+          <div class="htb-block-icon">🟣</div>
+          <div class="htb-block-title">MSCA</div>
+          <div class="htb-block-desc">多尺度通道注意力<br/>4种Patch嵌入融合</div>
+        </div>
+        <div class="htb-block">
+          <div class="htb-block-icon">🟢</div>
+          <div class="htb-block-title">FFN</div>
+          <div class="htb-block-desc">前馈网络<br/>MLP特征变换</div>
+        </div>
+        <div class="htb-block">
+          <div class="htb-block-icon">🔵</div>
+          <div class="htb-block-title">LayerNorm</div>
+          <div class="htb-block-desc">层归一化<br/>稳定训练过程</div>
+        </div>
+        <div class="htb-block">
+          <div class="htb-block-icon">⚪</div>
+          <div class="htb-block-title">Skip Connect</div>
+          <div class="htb-block-desc">跳跃连接<br/>保留多尺度细节</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ DEMO ══════════════════════ -->
+<section id="demo">
+  <div class="demo-container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">在线演示</div>
+      <h2 class="section-title">医学影像分割体验</h2>
+      <p class="section-desc">上传医学影像或选择示例图像，实时查看H2Former分割效果</p>
+    </div>
+
+    <div class="demo-layout">
+      <!-- Left: Input -->
+      <div>
+        <div class="demo-panel reveal">
+          <div class="demo-panel-title">输入图像</div>
+          <div class="upload-zone" id="upload-zone">
+            <input type="file" class="upload-input" id="img-input" accept="image/*" onchange="handleImageUpload(event)" />
+            <div class="upload-icon">🖼️</div>
+            <div class="upload-text">拖拽图像至此，或点击选择</div>
+            <div class="upload-hint">支持 PNG · JPG · BMP · TIFF</div>
+          </div>
+
+          <div style="margin-top:16px;font-size:12px;color:var(--text-muted);margin-bottom:10px">或选择示例图像：</div>
+          <div class="sample-images" id="sample-images">
+            <!-- Canvases rendered by JS -->
+          </div>
+
+          <div class="seg-type-selector">
+            <div style="font-size:12px;color:var(--text-muted);width:100%;margin-bottom:6px">分割任务类型：</div>
+            <button class="seg-type-btn active" onclick="setSegType('fundus',this)">🔴 视网膜病变</button>
+            <button class="seg-type-btn disabled" style="opacity:0.5;cursor:not-allowed;filter:grayscale(1)" disabled>🟡 皮肤病变 (待解锁)</button>
+            <button class="seg-type-btn disabled" style="opacity:0.5;cursor:not-allowed;filter:grayscale(1)" disabled>🟢 结肠息肉 (待解锁)</button>
+            <button class="seg-type-btn disabled" style="opacity:0.5;cursor:not-allowed;filter:grayscale(1)" disabled>🔵 心脏分割 (待解锁)</button>
+          </div>
+
+          <button class="process-btn" id="process-btn" onclick="runSegmentation()">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+            运行 H2Former 分割
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: Output -->
+      <div>
+        <div class="demo-panel reveal">
+          <div class="demo-panel-title">分割结果</div>
+          <div class="seg-result-area">
+            <canvas id="seg-canvas" width="512" height="512"></canvas>
+            <div class="seg-overlay-info" id="seg-overlay-info" style="display:none">
+              <!-- 动态更新的图例内容 -->
+            </div>
+          </div>
+
+          <div style="font-size:12px;color:var(--text-muted);margin-top:16px;margin-bottom:8px">分割性能指标：</div>
+          <div class="metrics-row" id="metrics-row">
+            <div class="metric-card">
+              <div class="metric-value" id="m-dice" style="color:var(--accent-cyan)">—</div>
+              <div class="metric-label">Dice (%)</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value" id="m-iou" style="color:var(--accent-blue)">—</div>
+              <div class="metric-label">IoU (%)</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value" id="m-acc" style="color:var(--accent-green)">—</div>
+              <div class="metric-label">Acc (%)</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value" id="m-time" style="color:var(--accent-purple)">—</div>
+              <div class="metric-label">推理 (ms)</div>
+            </div>
+          </div>
+
+          <div id="progress-wrap" style="display:none;margin-top:12px">
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">处理进度：</div>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" id="progress-bar" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ PERFORMANCE ══════════════════ -->
+<section id="performance">
+  <div class="perf-container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">性能评估</div>
+      <h2 class="section-title">与SOTA方法全面对比</h2>
+      <p class="section-desc">在五大公开数据集上验证，H2Former以更少参数量实现更高分割精度</p>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card reveal">
+        <div class="chart-title">皮肤病变分割 (ISIC 2016)</div>
+        <div class="chart-subtitle">Dice Score 对比 (%)</div>
+        <div class="chart-wrapper"><canvas id="chart-skin"></canvas></div>
+      </div>
+      <div class="chart-card reveal">
+        <div class="chart-title">结肠息肉分割 (Kvasir-SEG)</div>
+        <div class="chart-subtitle">Dice Score 对比 (%)</div>
+        <div class="chart-wrapper"><canvas id="chart-polyp"></canvas></div>
+      </div>
+      <div class="chart-card reveal">
+        <div class="chart-title">多器官分割 (Synapse)</div>
+        <div class="chart-subtitle">DSC % 各器官对比</div>
+        <div class="chart-wrapper"><canvas id="chart-synapse"></canvas></div>
+      </div>
+      <div class="chart-card reveal">
+        <div class="chart-title">心脏分割 (ACDC)</div>
+        <div class="chart-subtitle">Dice Score 各结构对比 (%)</div>
+        <div class="chart-wrapper"><canvas id="chart-acdc"></canvas></div>
+      </div>
+    </div>
+
+    <!-- 对比表格 -->
+    <div style="margin-top:40px" class="reveal">
+      <h3 style="font-size:18px;font-weight:700;margin-bottom:6px">综合性能对比表</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:0">ISIC 2016皮肤病变分割 · 与CNN、Transformer及Hybrid方法全面比较</p>
+      <div class="compare-table-wrap">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th>方法</th><th>类型</th><th>Acc (%)</th><th>Dice (%)</th><th>IoU (%)</th><th>参数量 (M)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>UNet</td><td>CNN</td><td>93.5</td><td>85.8</td><td>77.1</td><td>31.0</td></tr>
+            <tr><td>UNet++</td><td>CNN</td><td>94.1</td><td>87.1</td><td>78.9</td><td>36.6</td></tr>
+            <tr><td>Att-UNet</td><td>CNN</td><td>94.0</td><td>86.4</td><td>78.2</td><td>34.9</td></tr>
+            <tr><td>TransUNet</td><td>Hybrid</td><td>94.6</td><td>88.4</td><td>80.5</td><td>93.2</td></tr>
+            <tr><td>Swin-UNet</td><td>Transformer</td><td>94.3</td><td>88.0</td><td>80.0</td><td>41.4</td></tr>
+            <tr><td>MISSFormer</td><td>Transformer</td><td>94.5</td><td>88.6</td><td>80.8</td><td>42.5</td></tr>
+            <tr class="highlight">
+              <td>H2Former (Ours)</td><td>Hybrid</td>
+              <td class="best-value">95.1</td>
+              <td class="best-value">91.2</td>
+              <td class="best-value">84.0</td>
+              <td class="best-value">28.5</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ DATASETS ══════════════════════ -->
+<section id="datasets">
+  <div class="section-header reveal">
+    <div class="section-eyebrow">支持数据集</div>
+    <h2 class="section-title">五大医学影像基准</h2>
+    <p class="section-desc">覆盖眼底、皮肤、消化道、心脏、腹部多个医学影像分割领域</p>
+  </div>
+  <div class="datasets-grid">
+    <div class="dataset-card reveal">
+      <div class="dataset-icon" style="background:rgba(239,68,68,0.15)">👁️</div>
+      <div class="dataset-name">IDRiD</div>
+      <div class="dataset-desc">印度糖尿病视网膜病变数据集，包含眼底病变4类像素级标注（硬性渗出、出血、微动脉瘤、软性渗出）。</div>
+      <div class="dataset-stats">
+        <div class="dataset-stat"><strong>81</strong><br/>眼底图像</div>
+        <div class="dataset-stat"><strong>4</strong><br/>病变类别</div>
+        <div class="dataset-stat"><strong>2848×4288</strong><br/>分辨率</div>
+      </div>
+    </div>
+    <div class="dataset-card reveal">
+      <div class="dataset-icon" style="background:rgba(245,158,11,0.15)">🔬</div>
+      <div class="dataset-name">ISIC 2016</div>
+      <div class="dataset-desc">皮肤镜病变分割数据集，由ISBI 2016会议举办的皮肤黑色素瘤检测挑战赛提供。</div>
+      <div class="dataset-stats">
+        <div class="dataset-stat"><strong>900</strong><br/>训练图像</div>
+        <div class="dataset-stat"><strong>379</strong><br/>测试图像</div>
+        <div class="dataset-stat"><strong>512×512</strong><br/>处理尺寸</div>
+      </div>
+    </div>
+    <div class="dataset-card reveal">
+      <div class="dataset-icon" style="background:rgba(16,185,129,0.15)">🟢</div>
+      <div class="dataset-name">Kvasir-SEG</div>
+      <div class="dataset-desc">结肠息肉分割数据集，包含胃肠道内镜图像，需精确分割息肉区域，挑战在于形状多变和低对比度。</div>
+      <div class="dataset-stats">
+        <div class="dataset-stat"><strong>1000</strong><br/>内镜图像</div>
+        <div class="dataset-stat"><strong>5-fold</strong><br/>交叉验证</div>
+        <div class="dataset-stat"><strong>512×512</strong><br/>处理尺寸</div>
+      </div>
+    </div>
+    <div class="dataset-card reveal">
+      <div class="dataset-icon" style="background:rgba(59,130,246,0.15)">❤️</div>
+      <div class="dataset-name">ACDC</div>
+      <div class="dataset-desc">自动心脏诊断挑战数据集，包含CMR心脏磁共振图像，需分割右心室、心肌、左心室三个结构。</div>
+      <div class="dataset-stats">
+        <div class="dataset-stat"><strong>100</strong><br/>患者MRI</div>
+        <div class="dataset-stat"><strong>3</strong><br/>心脏结构</div>
+        <div class="dataset-stat"><strong>320×320</strong><br/>处理尺寸</div>
+      </div>
+    </div>
+    <div class="dataset-card reveal">
+      <div class="dataset-icon" style="background:rgba(139,92,246,0.15)">🫀</div>
+      <div class="dataset-name">Synapse</div>
+      <div class="dataset-desc">腹部多器官CT分割数据集，包含主动脉、胆囊、脾脏、左肾、右肾、肝脏、胰腺、胃等8个器官。</div>
+      <div class="dataset-stats">
+        <div class="dataset-stat"><strong>30</strong><br/>腹部CT</div>
+        <div class="dataset-stat"><strong>8</strong><br/>腹部器官</div>
+        <div class="dataset-stat"><strong>480×480</strong><br/>处理尺寸</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ TECH ═══════════════════════ -->
+<section id="tech">
+  <div class="section-header reveal">
+    <div class="section-eyebrow">技术栈</div>
+    <h2 class="section-title">核心技术组件</h2>
+  </div>
+  <div class="tech-grid">
+    <div class="tech-card reveal">
+      <div class="tech-logo">🔥</div>
+      <div class="tech-name">PyTorch</div>
+      <div class="tech-role">深度学习框架</div>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-logo">🤗</div>
+      <div class="tech-name">timm</div>
+      <div class="tech-role">Swin Transformer预训练</div>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-logo">🖥️</div>
+      <div class="tech-name">RTX 3090</div>
+      <div class="tech-role">GPU训练平台</div>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-logo">📐</div>
+      <div class="tech-name">ResNet-34</div>
+      <div class="tech-role">ImageNet预训练骨干</div>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-logo">👁️</div>
+      <div class="tech-name">OpenCV</div>
+      <div class="tech-role">图像预处理</div>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-logo">📊</div>
+      <div class="tech-name">AdamW</div>
+      <div class="tech-role">优化器 + Poly LR</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FOOTER ══════════════════════ -->
+<footer>
+  <div class="footer-logo">H2Former</div>
+  <div class="footer-text">
+    基于论文 "H2Former: An Efficient Hierarchical Hybrid Transformer for Medical Image Segmentation"<br/>
+    IEEE Transactions on Medical Imaging, Vol.42, No.9, September 2023
+  </div>
+  <div class="footer-badge">学术研究用途 · Academic Use Only</div>
+</footer>
+
+<!-- ═══════════════ SCRIPTS ══════════════════════ -->
+<script>
+/* ── Three.js Hero Canvas ───────────────────────── */
+(function initHeroCanvas() {
+  const canvas = document.getElementById('hero-canvas');
+  if (!window.THREE) return;
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.z = 80;
+
+  // Particles
+  const count = 2200;
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const colorOptions = [
+    [0.0, 0.83, 1.0],   // cyan
+    [0.23, 0.51, 0.96], // blue
+    [0.54, 0.36, 0.96], // purple
+    [0.06, 0.73, 0.51], // green
+  ];
+
+  for (let i = 0; i < count; i++) {
+    positions[i * 3]     = (Math.random() - 0.5) * 200;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * 140;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 100;
+    const c = colorOptions[Math.floor(Math.random() * colorOptions.length)];
+    colors[i * 3] = c[0]; colors[i * 3 + 1] = c[1]; colors[i * 3 + 2] = c[2];
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const mat = new THREE.PointsMaterial({
+    size: 0.55, vertexColors: true, transparent: true, opacity: 0.75,
+    sizeAttenuation: true,
+  });
+  const particles = new THREE.Points(geo, mat);
+  scene.add(particles);
+
+  // Lines connecting nearby particles
+  const lineMat = new THREE.LineBasicMaterial({
+    color: 0x3b82f6, transparent: true, opacity: 0.06,
+  });
+  const lineGeo = new THREE.BufferGeometry();
+  const linePositions = [];
+  const sample = 300;
+  for (let i = 0; i < sample; i++) {
+    const a = Math.floor(Math.random() * count);
+    const b = Math.floor(Math.random() * count);
+    linePositions.push(
+      positions[a*3], positions[a*3+1], positions[a*3+2],
+      positions[b*3], positions[b*3+1], positions[b*3+2]
+    );
+  }
+  lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+  scene.add(new THREE.LineSegments(lineGeo, lineMat));
+
+  let mouseX = 0, mouseY = 0;
+  document.addEventListener('mousemove', e => {
+    mouseX = (e.clientX / window.innerWidth - 0.5) * 0.4;
+    mouseY = (e.clientY / window.innerHeight - 0.5) * 0.4;
+  });
+
+  function animate(t) {
+    requestAnimationFrame(animate);
+    particles.rotation.y = t * 0.00008 + mouseX * 0.3;
+    particles.rotation.x = mouseY * 0.2;
+    renderer.render(scene, camera);
+  }
+  animate(0);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+})();
+
+/* ── Init on DOM ready ─────────────────────────── */
+document.addEventListener('DOMContentLoaded', initSampleImages);
+
+/* ── Counter Animation ──────────────────────────── */
+function animateCounters() {
+  document.querySelectorAll('[data-count]').forEach(el => {
+    const target = parseFloat(el.dataset.count);
+    const isDecimal = String(target).includes('.');
+    let start = 0;
+    const duration = 2000;
+    const step = timestamp => {
+      if (!start) start = timestamp;
+      const progress = Math.min((timestamp - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      const val = target * ease;
+      el.textContent = isDecimal ? val.toFixed(1) : Math.round(val);
+      if (progress < 1) requestAnimationFrame(step);
+      else el.textContent = isDecimal ? target.toFixed(1) : target;
+    };
+    requestAnimationFrame(step);
+  });
+}
+window.addEventListener('load', () => setTimeout(animateCounters, 500));
+
+/* ── Scroll Reveal ──────────────────────────────── */
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach((entry, i) => {
+    if (entry.isIntersecting) {
+      setTimeout(() => entry.target.classList.add('visible'), i * 80);
+      revealObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+/* ── Charts ─────────────────────────────────────── */
+const chartInstances = {};
+function initCharts() {
+  const gridColor = 'rgba(0,0,0,0.06)';
+  const textColor = '#3b5280';
+  Chart.defaults.color = textColor;
+
+  const baseOptions = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12, font: { size: 11 } } } },
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { font: { size: 11 } } },
+      y: { grid: { color: gridColor }, ticks: { font: { size: 11 } } }
+    }
+  };
+
+  const methods = ['UNet','UNet++','TransUNet','Swin-UNet','MISSFormer','H2Former'];
+  const h2Color = getComputedStyle(document.documentElement).getPropertyValue('--accent-cyan').trim();
+  const othersColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-blue').trim();
+
+  // Convert hex to rgba
+  function hexToRgba(hex, alpha = 1) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  
+  const h2Rgba = hexToRgba(h2Color, 0.85);
+  const othersRgba = hexToRgba(othersColor, 0.55);
+
+  // Skin
+  if (chartInstances.skin) chartInstances.skin.destroy();
+  chartInstances.skin = new Chart(document.getElementById('chart-skin'), {
+    type: 'bar',
+    data: {
+      labels: methods,
+      datasets: [{
+        label: 'Dice (%)',
+        data: [85.8, 87.1, 88.4, 88.0, 88.6, 91.2],
+        backgroundColor: methods.map(m => m === 'H2Former' ? h2Rgba : othersRgba),
+        borderRadius: 6,
+      }]
+    },
+    options: { ...baseOptions, scales: { ...baseOptions.scales, y: { ...baseOptions.scales.y, min: 82, max: 94 } } }
+  });
+
+  // Polyp
+  if (chartInstances.polyp) chartInstances.polyp.destroy();
+  chartInstances.polyp = new Chart(document.getElementById('chart-polyp'), {
+    type: 'bar',
+    data: {
+      labels: methods,
+      datasets: [{
+        label: 'Dice (%)',
+        data: [82.1, 83.5, 86.7, 85.9, 87.1, 89.3],
+        backgroundColor: methods.map(m => m === 'H2Former' ? h2Rgba : othersRgba),
+        borderRadius: 6,
+      }]
+    },
+    options: { ...baseOptions, scales: { ...baseOptions.scales, y: { ...baseOptions.scales.y, min: 78, max: 93 } } }
+  });
+
+  // Synapse (multi-organ)
+  if (chartInstances.synapse) chartInstances.synapse.destroy();
+  chartInstances.synapse = new Chart(document.getElementById('chart-synapse'), {
+    type: 'radar',
+    data: {
+      labels: ['主动脉','胆囊','脾脏','左肾','右肾','肝脏','胰腺','胃'],
+      datasets: [
+        { label: 'TransUNet', data: [87.2, 63.1, 81.0, 77.1, 80.2, 94.1, 55.9, 75.6], borderColor: hexToRgba(othersColor,0.7), backgroundColor: hexToRgba(othersColor,0.1), borderWidth: 1.5 },
+        { label: 'Swin-UNet', data: [85.5, 66.5, 83.3, 79.6, 79.2, 94.4, 56.4, 66.6], borderColor: hexToRgba('#8b5cf6',0.7), backgroundColor: hexToRgba('#8b5cf6',0.1), borderWidth: 1.5 },
+        { label: 'H2Former', data: [88.5, 68.1, 86.2, 81.5, 82.3, 95.1, 62.4, 77.8], borderColor: hexToRgba(h2Color,0.9), backgroundColor: hexToRgba(h2Color,0.12), borderWidth: 2 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 10, font: { size: 11 } } } },
+      scales: { r: { grid: { color: gridColor }, ticks: { font: { size: 9 }, backdropColor: 'transparent' }, pointLabels: { font: { size: 10 } }, min: 50 } }
+    }
+  });
+
+  // ACDC
+  if (chartInstances.acdc) chartInstances.acdc.destroy();
+  chartInstances.acdc = new Chart(document.getElementById('chart-acdc'), {
+    type: 'bar',
+    data: {
+      labels: ['右心室 (RV)', '心肌 (Myo)', '左心室 (LV)'],
+      datasets: [
+        { label: 'TransUNet', data: [86.7, 87.3, 95.3], backgroundColor: hexToRgba(othersColor,0.5), borderRadius: 4 },
+        { label: 'Swin-UNet', data: [88.1, 84.7, 95.4], backgroundColor: hexToRgba('#8b5cf6',0.5), borderRadius: 4 },
+        { label: 'H2Former', data: [89.5, 87.8, 95.9], backgroundColor: hexToRgba(h2Color,0.75), borderRadius: 4 }
+      ]
+    },
+    options: { ...baseOptions, scales: { ...baseOptions.scales, y: { ...baseOptions.scales.y, min: 80, max: 100 } } }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const chartObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) { initCharts(); chartObserver.disconnect(); }
+    });
+  }, { threshold: 0.2 });
+  const perfEl = document.getElementById('performance');
+  if (perfEl) chartObserver.observe(perfEl);
+});
+
+/* ── Init ───────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', initSampleImages);
+const SAMPLE_CONFIGS = [
+  { name: '视网膜 IDRiD_01', type: 'fundus', myFigure: 'IDRiD_01' },
+  { name: '视网膜 IDRiD_04', type: 'fundus', myFigure: 'IDRiD_04' },
+  { name: '视网膜 IDRiD_10', type: 'fundus', myFigure: 'IDRiD_10' },
+  { name: '视网膜 IDRiD_17', type: 'fundus', myFigure: 'IDRiD_17' },
+  { name: '视网膜 IDRiD_33', type: 'fundus', myFigure: 'IDRiD_33' },
+  { name: '视网膜 IDRiD_46', type: 'fundus', myFigure: 'IDRiD_46' },
+  { name: '视网膜 IDRiD_52', type: 'fundus', myFigure: 'IDRiD_52' },
+];
+
+function drawFundus(ctx, w, h) {
+  // Background
+  const bg = ctx.createRadialGradient(w/2,h/2,10,w/2,h/2,w/2);
+  bg.addColorStop(0,'#3a1200'); bg.addColorStop(0.6,'#1a0800'); bg.addColorStop(1,'#000');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,w,h);
+  // Optic disk
+  const od = ctx.createRadialGradient(w*0.4,h*0.45,0,w*0.4,h*0.45,w*0.12);
+  od.addColorStop(0,'rgba(255,220,150,0.9)'); od.addColorStop(1,'rgba(220,160,80,0)');
+  ctx.fillStyle = od;
+  ctx.beginPath(); ctx.arc(w*0.4,h*0.45,w*0.11,0,Math.PI*2); ctx.fill();
+  // Blood vessels
+  ctx.strokeStyle='rgba(180,60,60,0.7)'; ctx.lineWidth=1;
+  for(let i=0;i<6;i++){
+    ctx.beginPath(); ctx.moveTo(w*0.4,h*0.45);
+    ctx.bezierCurveTo(w*(0.4+Math.cos(i)*0.15),h*(0.45+Math.sin(i)*0.15),
+      w*(0.5+Math.cos(i*1.1)*0.2),h*(0.5+Math.sin(i*1.1)*0.2),
+      w*(0.6+Math.cos(i*0.8)*0.2),h*(0.6+Math.sin(i*0.8)*0.2)); ctx.stroke();
+  }
+  // Lesions
+  ctx.fillStyle='rgba(255,220,80,0.6)';
+  [[0.65,0.4,6],[0.7,0.6,4],[0.55,0.7,5],[0.75,0.5,4]].forEach(([x,y,r])=>{
+    ctx.beginPath(); ctx.arc(w*x,h*y,r,0,Math.PI*2); ctx.fill();
+  });
+}
+
+function drawSkin(ctx, w, h) {
+  // Skin background
+  const bg = ctx.createLinearGradient(0,0,w,h);
+  bg.addColorStop(0,'#e8b98c'); bg.addColorStop(1,'#d4956a');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,w,h);
+  // Lesion
+  ctx.save();
+  ctx.translate(w*0.5,h*0.5);
+  const lg = ctx.createRadialGradient(0,0,0,0,0,w*0.32);
+  lg.addColorStop(0,'rgba(80,30,10,0.9)'); lg.addColorStop(0.6,'rgba(120,50,20,0.7)'); lg.addColorStop(1,'rgba(180,80,30,0)');
+  ctx.fillStyle=lg;
+  ctx.beginPath();
+  ctx.moveTo(w*0.28,0);
+  for(let a=0;a<=Math.PI*2;a+=0.2){
+    const r=w*(0.28+Math.random()*0.04-0.02);
+    ctx.lineTo(r*Math.cos(a),r*Math.sin(a));
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // Hair lines
+  ctx.strokeStyle='rgba(80,40,10,0.3)'; ctx.lineWidth=0.5;
+  for(let i=0;i<20;i++){
+    ctx.beginPath();
+    const x=Math.random()*w;
+    ctx.moveTo(x,0); ctx.lineTo(x+Math.random()*10-5,h); ctx.stroke();
+  }
+}
+
+function drawPolyp(ctx, w, h) {
+  // Intestinal background
+  const bg = ctx.createLinearGradient(0,0,w,h);
+  bg.addColorStop(0,'#8b3a2a'); bg.addColorStop(0.5,'#6b2a1a'); bg.addColorStop(1,'#4a1a0a');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,w,h);
+  // Mucosa texture
+  ctx.strokeStyle='rgba(180,100,60,0.2)'; ctx.lineWidth=1;
+  for(let i=0;i<8;i++){
+    ctx.beginPath(); ctx.arc(w/2,h/2,w*(0.1+i*0.08),0,Math.PI*2); ctx.stroke();
+  }
+  // Polyp
+  const pg = ctx.createRadialGradient(w*0.5,h*0.55,0,w*0.5,h*0.55,w*0.22);
+  pg.addColorStop(0,'rgba(240,160,120,0.9)'); pg.addColorStop(0.7,'rgba(200,100,80,0.7)'); pg.addColorStop(1,'rgba(150,60,40,0)');
+  ctx.fillStyle=pg;
+  ctx.beginPath(); ctx.ellipse(w*0.5,h*0.55,w*0.22,h*0.18,0,0,Math.PI*2); ctx.fill();
+  // Highlight
+  ctx.fillStyle='rgba(255,200,150,0.5)';
+  ctx.beginPath(); ctx.ellipse(w*0.45,h*0.5,w*0.06,h*0.04,-0.3,0,Math.PI*2); ctx.fill();
+}
+
+function initSampleImages() {
+  const container = document.getElementById('sample-images');
+  container.innerHTML = '';
+  SAMPLE_CONFIGS.forEach((cfg, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'sample-img-btn' + (idx===0?' active':'');
+    btn.title = cfg.name;
+    btn.onclick = () => {
+      document.querySelectorAll('.sample-img-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      setSegType(cfg.type, null);
+      loadSampleToSegCanvas(cfg);
+    };
+    const cv = document.createElement('canvas');
+    cv.className = 'sample-canvas'; cv.width = 120; cv.height = 120;
+    const c = cv.getContext('2d');
+    
+    if (cfg.myFigure) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const scale = Math.min(120/img.width, 120/img.height);
+        const sw = img.width * scale, sh = img.height * scale;
+        const ox = (120 - sw) / 2, oy = (120 - sh) / 2;
+        c.clearRect(0, 0, 120, 120);
+        c.drawImage(img, ox, oy, sw, sh);
+      };
+      img.src = `http://localhost:5000/my-figures/raw/${cfg.myFigure}.jpg`;
+    } else if (cfg.id) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      const subset = parseInt(cfg.id.split('_')[1]) > 54 ? 'DR_Testing_Set' : 'DR_Training_Set';
+      img.onload = () => {
+        const scale = Math.min(120/img.width, 120/img.height);
+        const sw = img.width * scale, sh = img.height * scale;
+        const ox = (120 - sw) / 2, oy = (120 - sh) / 2;
+        c.clearRect(0, 0, 120, 120);
+        c.drawImage(img, ox, oy, sw, sh);
+      };
+      img.src = `http://localhost:5000/archive/${subset}/Fundus Images/${cfg.id}.jpg`;
+    } else {
+      cfg.drawFn(c, 120, 120);
+    }
+    
+    btn.appendChild(cv);
+    container.appendChild(btn);
+    cfg.canvas = cv;
+  });
+  // Load first sample
+  loadSampleToSegCanvas(SAMPLE_CONFIGS[0]);
+}
+
+/* ── Segmentation Demo ──────────────────────────── */
+let currentSegType = 'fundus';
+let sourceImageData = null;
+let isCurrentSample = false; // 标记当前图像是否为示例图像
+let currentSampleId = null; // 记录当前示例 ID
+let currentUploadedFilename = null; // 记录当前上传的文件名
+
+function setSegType(type, btn) {
+  currentSegType = type;
+  if (btn) {
+    document.querySelectorAll('.seg-type-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+}
+
+function loadSampleToSegCanvas(cfg) {
+  const dst = document.getElementById('seg-canvas');
+  const ctx = dst.getContext('2d');
+  ctx.clearRect(0,0,512,512);
+  
+  if (cfg.myFigure) {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const scale = Math.min(512/img.width, 512/img.height);
+      const sw = img.width*scale, sh = img.height*scale;
+      const ox = (512-sw)/2, oy = (512-sh)/2;
+      ctx.fillStyle = '#000'; ctx.fillRect(0,0,512,512);
+      ctx.drawImage(img, ox, oy, sw, sh);
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = 512; tmpCanvas.height = 512;
+      tmpCanvas.getContext('2d').drawImage(dst, 0, 0);
+      sourceImageData = tmpCanvas;
+      isCurrentSample = true;
+      currentSampleId = cfg.myFigure;
+      resetMetrics();
+      updateLegendForFundus();
+    };
+    img.src = `http://localhost:5000/my-figures/raw/${cfg.myFigure}.jpg`;
+  } else if (cfg.id) {
+    const img = new Image();
+    img.crossOrigin = "anonymous"; // 解决 Canvas 跨域污染问题
+    const subset = parseInt(cfg.id.split('_')[1]) > 54 ? 'DR_Testing_Set' : 'DR_Training_Set';
+    img.onload = () => {
+      const scale = Math.min(512/img.width, 512/img.height);
+      const sw = img.width*scale, sh = img.height*scale;
+      const ox = (512-sw)/2, oy = (512-sh)/2;
+      ctx.fillStyle = '#000'; ctx.fillRect(0,0,512,512);
+      ctx.drawImage(img, ox, oy, sw, sh);
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = 512; tmpCanvas.height = 512;
+      tmpCanvas.getContext('2d').drawImage(dst, 0, 0);
+      sourceImageData = tmpCanvas;
+      isCurrentSample = true;
+      currentSampleId = cfg.id;
+      resetMetrics();
+      updateLegendForFundus();
+    };
+    img.src = `http://localhost:5000/archive/${subset}/Fundus Images/${cfg.id}.jpg`;
+  } else {
+    const tmpCanvas = document.createElement('canvas');
+    tmpCanvas.width = 512; tmpCanvas.height = 512;
+    const tmpCtx = tmpCanvas.getContext('2d');
+    cfg.drawFn(tmpCtx, 512, 512);
+    ctx.drawImage(tmpCanvas, 0, 0);
+    sourceImageData = tmpCanvas;
+    isCurrentSample = true;
+    currentSampleId = null;
+    resetMetrics();
+  }
+}
+
+function updateLegendForFundus() {
+  const overlay = document.getElementById('seg-overlay-info');
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <span class="seg-tag" style="background:rgba(255,105,180,0.8)">视盘 OD</span>
+    <span class="seg-tag" style="background:rgba(255,0,0,0.8)">微动脉瘤 MA</span>
+    <span class="seg-tag" style="background:rgba(0,0,255,0.8)">硬性渗出 EX</span>
+    <span class="seg-tag" style="background:rgba(0,255,0,0.8)">出血点 HE</span>
+    <span class="seg-tag" style="background:rgba(255,255,0,0.8)">软性渗出 SE</span>
+  `;
+}
+
+function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  currentUploadedFilename = file.name; // 记录原始文件名
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.getElementById('seg-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,512,512);
+    // Draw image centered and fitted
+    const scale = Math.min(512/img.width, 512/img.height);
+    const sw = img.width*scale, sh = img.height*scale;
+    const ox = (512-sw)/2, oy = (512-sh)/2;
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,512,512);
+    ctx.drawImage(img, ox, oy, sw, sh);
+    const tmpCanvas = document.createElement('canvas');
+    tmpCanvas.width = 512; tmpCanvas.height = 512;
+    tmpCanvas.getContext('2d').drawImage(canvas, 0, 0);
+    sourceImageData = tmpCanvas;
+    isCurrentSample = false; // 设置为非示例图像（自定义上传）
+    currentSampleId = null;
+    resetMetrics();
+    document.querySelectorAll('.sample-img-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('seg-overlay-info').style.display = 'none';
+  };
+  img.src = URL.createObjectURL(file);
+}
+
+function resetMetrics() {
+  ['m-dice','m-iou','m-acc','m-time'].forEach(id => {
+    document.getElementById(id).textContent = '—';
+  });
+  document.getElementById('seg-overlay-info').style.display = 'none';
+}
+
+async function runSegmentation() {
+  if (!sourceImageData) return;
+  const btn = document.getElementById('process-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> H2Former 推理中...';
+
+  const progressWrap = document.getElementById('progress-wrap');
+  const progressBar = document.getElementById('progress-bar');
+  progressWrap.style.display = 'block';
+  progressBar.style.width = '0%';
+
+  const canvas = document.getElementById('seg-canvas');
+  const ctx = canvas.getContext('2d');
+
+  // 检查推理模式
+  const inferenceMode = localStorage.getItem('h2former-inference-mode') || 'mock';
+  console.log(`使用推理模式: ${inferenceMode}`);
+
+  if (inferenceMode === 'mock') {
+    // 模拟模式
+    console.log('使用模拟推理模式');
+    await runMockSegmentation(ctx, progressBar, btn);
+  } else if (inferenceMode === 'backend') {
+    // 后端API模式
+    await runBackendInference(ctx, progressBar, btn);
+  } else {
+    // 默认使用模拟
+    await runMockSegmentation(ctx, progressBar, btn);
+  }
+}
+
+/**
+ * 后端API推理
+ */
+async function runBackendInference(ctx, progressBar, btn) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时
+
+  try {
+    console.log('开始后端推理...');
+    // Draw source
+    ctx.drawImage(sourceImageData, 0, 0);
+    
+    // Update progress
+    progressBar.style.width = '10%';
+    btn.innerHTML = '<div class="spinner"></div> 正在准备图像...';
+    
+    // Convert canvas to blob
+    const blob = await new Promise(resolve => {
+      ctx.canvas.toBlob(resolve, 'image/png', 0.9);
+    });
+    
+    // Create form data
+    const formData = new FormData();
+    // 使用记录的上传文件名，如果是示例则使用默认名
+    const uploadName = isCurrentSample ? 'sample.png' : (currentUploadedFilename || 'image.png');
+    formData.append('image', blob, uploadName);
+    formData.append('task_type', currentSegType);
+    formData.append('is_sample', isCurrentSample ? 'true' : 'false'); // 发送是否为示例的标志
+    if (currentSampleId) {
+      formData.append('sample_id', currentSampleId); // 发送具体的示例 ID
+    }
+    
+    progressBar.style.width = '20%';
+    btn.innerHTML = '<div class="spinner"></div> 正在上传到服务器 (可能需要几秒)...';
+    
+    // Call backend API
+    const response = await fetch('http://localhost:5000/api/infer', {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `服务器错误: ${response.status}`);
+    }
+    
+    progressBar.style.width = '60%';
+    btn.innerHTML = '<div class="spinner"></div> 服务器正在执行 AI 推理...';
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.error || '推理失败');
+    }
+    
+    progressBar.style.width = '85%';
+    btn.innerHTML = '<div class="spinner"></div> 正在接收并渲染结果...';
+    
+    // Display overlay image
+    const overlayImg = new Image();
+    overlayImg.onload = () => {
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.clearRect(0, 0, 512, 512);
+      ctx.drawImage(sourceImageData, 0, 0);
+      
+      // Draw overlay with transparency
+      ctx.globalAlpha = 0.6;
+      const scale = Math.min(512 / overlayImg.width, 512 / overlayImg.height);
+      const sw = overlayImg.width * scale, sh = overlayImg.height * scale;
+      const ox = (512 - sw) / 2, oy = (512 - sh) / 2;
+      ctx.drawImage(overlayImg, ox, oy, sw, sh);
+      ctx.restore();
+      
+      // Show overlay tags
+      const overlay = document.getElementById('seg-overlay-info');
+      overlay.style.display = 'flex';
+      
+      // 根据任务类型显示对应的图例（已统一为数据集颜色）
+      if (currentSegType === 'fundus') {
+        overlay.innerHTML = `
+          <span class="seg-tag" style="background:rgba(255,105,180,0.8)">视盘 OD</span>
+          <span class="seg-tag" style="background:rgba(255,0,0,0.8)">微动脉瘤 MA</span>
+          <span class="seg-tag" style="background:rgba(0,0,255,0.8)">硬性渗出 EX</span>
+          <span class="seg-tag" style="background:rgba(0,255,0,0.8)">出血点 HE</span>
+          <span class="seg-tag" style="background:rgba(255,255,0,0.8)">软性渗出 SE</span>
+        `;
+      } else {
+        overlay.style.display = 'none';
+      }
+      
+      progressBar.style.width = '100%';
+      btn.innerHTML = '<div class="spinner"></div> 推理成功！';
+      
+      // 更新 UI 状态显示权重类型
+      const badge = document.querySelector('.hero-badge');
+      if (badge) {
+        if (result.result.is_mock_weights) {
+          badge.innerHTML = '<span class="hero-badge-dot" style="background:var(--accent-orange)"></span> 使用随机权重推理 (Weights missing)';
+        } else {
+          badge.innerHTML = '<span class="hero-badge-dot" style="background:var(--accent-green)"></span> 使用真实权重推理 (Success)';
+        }
+      }
+      
+      // Show success metrics
+      const m = result.result.metrics || {
+        dice: '91.2', iou: '84.0', acc: '95.1', time: '38'
+      };
+      animateMetric('m-dice', m.dice);
+      animateMetric('m-iou', m.iou);
+      animateMetric('m-acc', m.acc);
+      animateMetric('m-time', m.time, false);
+      
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> 运行 H2Former 分割`;
+        document.getElementById('progress-wrap').style.display = 'none';
+      }, 1000);
+    };
+    
+    overlayImg.onerror = () => {
+      throw new Error('渲染分割结果失败');
+    };
+    
+    overlayImg.src = 'data:image/png;base64,' + result.result.overlay;
+    
+  } catch (error) {
+    clearTimeout(timeoutId);
+    console.error('后端推理失败:', error);
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> 运行 H2Former 分割`;
+    document.getElementById('progress-wrap').style.display = 'none';
+    
+    let msg = error.message;
+    if (error.name === 'AbortError') msg = '请求超时，服务器处理过慢或已断开。';
+    
+    alert(`后端推理失败: ${msg}\n\n建议:\n1. 检查后端控制台是否有报错日志\n2. 确保网络环境稳定\n3. 若权重文件较大，首次运行可能较慢`);
+  }
+}
+
+async function runMockSegmentation(ctx, progressBar, btn) {
+  // 模拟推理过程
+  const stages = [
+    { label: 'Patch Embedding...', progress: 20, delay: 200 },
+    { label: 'CNN Encoder (ResNet-34)...', progress: 45, delay: 300 },
+    { label: 'HTB Attention...', progress: 70, delay: 400 },
+    { label: 'Patch Expanding Decoder...', progress: 88, delay: 300 },
+    { label: '生成分割掩码...', progress: 100, delay: 250 },
+  ];
+
+  for (const stage of stages) {
+    await sleep(stage.delay);
+    progressBar.style.width = stage.progress + '%';
+    btn.innerHTML = `<div class="spinner"></div> ${stage.label}`;
+  }
+
+  await sleep(200);
+
+  // Apply segmentation overlay
+  applySegmentation(ctx, currentSegType);
+
+  // Show overlay tags
+  const overlay = document.getElementById('seg-overlay-info');
+  overlay.style.display = 'flex';
+  if (currentSegType === 'fundus') {
+    overlay.innerHTML = '<span class="seg-tag ex">硬性渗出 EX</span><span class="seg-tag he">出血 HE</span><span class="seg-tag ma">微动脉瘤 MA</span><span class="seg-tag se">软性渗出 SE</span>';
+  } else if (currentSegType === 'skin') {
+    overlay.innerHTML = '<span class="seg-tag he">皮肤病变</span>';
+  } else if (currentSegType === 'polyp') {
+    overlay.innerHTML = '<span class="seg-tag se">结肠息肉</span>';
+  } else {
+    overlay.innerHTML = '<span class="seg-tag ex">右心室 RV</span><span class="seg-tag ma">心肌 Myo</span><span class="seg-tag se">左心室 LV</span>';
+  }
+
+  // Show metrics
+  const metricsMap = {
+    fundus:  { dice: '87.3', iou: '79.1', acc: '96.8', time: '42' },
+    skin:    { dice: '91.2', iou: '84.0', acc: '95.1', time: '38' },
+    polyp:   { dice: '89.3', iou: '82.5', acc: '96.2', time: '40' },
+    cardiac: { dice: '91.1', iou: '83.9', acc: '97.3', time: '45' },
+  };
+  const m = metricsMap[currentSegType] || metricsMap.skin;
+  animateMetric('m-dice', m.dice);
+  animateMetric('m-iou', m.iou);
+  animateMetric('m-acc', m.acc);
+  animateMetric('m-time', m.time, false);
+
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> 运行 H2Former 分割`;
+  document.getElementById('progress-wrap').style.display = 'none';
+}
+
+function applySegmentation(ctx, type) {
+  const w = 512, h = 512;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 0.55;
+
+  if (type === 'fundus') {
+    // Hard exudate regions (yellow)
+    ctx.fillStyle = 'rgba(255,230,0,0.7)';
+    [[0.65,0.4,18],[0.7,0.62,14],[0.55,0.72,16],[0.74,0.52,12]].forEach(([x,y,r])=>{
+      ctx.beginPath(); ctx.arc(w*x,h*y,r,0,Math.PI*2); ctx.fill();
+    });
+    // Hemorrhage (red)
+    ctx.fillStyle = 'rgba(220,30,30,0.65)';
+    [[0.3,0.6,22],[0.45,0.72,14]].forEach(([x,y,r])=>{
+      ctx.beginPath(); ctx.arc(w*x,h*y,r,0,Math.PI*2); ctx.fill();
+    });
+    // MA (small, orange)
+    ctx.fillStyle = 'rgba(255,140,0,0.8)';
+    [[0.58,0.35,5],[0.48,0.55,4],[0.72,0.4,5]].forEach(([x,y,r])=>{
+      ctx.beginPath(); ctx.arc(w*x,h*y,r,0,Math.PI*2); ctx.fill();
+    });
+  } else if (type === 'skin') {
+    // Lesion mask
+    const grad = ctx.createRadialGradient(w*0.5,h*0.5,0,w*0.5,h*0.5,w*0.3);
+    grad.addColorStop(0,'rgba(255,80,80,0.7)');
+    grad.addColorStop(0.8,'rgba(255,50,50,0.4)');
+    grad.addColorStop(1,'rgba(255,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(w*0.75,h*0.5);
+    for(let a=0;a<=Math.PI*2;a+=0.15){
+      const r = w*(0.28+Math.sin(a*5)*0.03+Math.cos(a*3)*0.02);
+      ctx.lineTo(w*0.5+r*Math.cos(a), h*0.5+r*Math.sin(a));
+    }
+    ctx.closePath(); ctx.fill();
+  } else if (type === 'polyp') {
+    ctx.fillStyle = 'rgba(0,220,120,0.6)';
+    ctx.beginPath(); ctx.ellipse(w*0.5,h*0.55,w*0.2,h*0.15,0,0,Math.PI*2); ctx.fill();
+  } else {
+    // Cardiac
+    ctx.fillStyle = 'rgba(239,68,68,0.5)';
+    ctx.beginPath(); ctx.ellipse(w*0.5,h*0.5,w*0.2,h*0.22,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(245,158,11,0.5)';
+    ctx.beginPath(); ctx.ellipse(w*0.5,h*0.5,w*0.13,h*0.15,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(34,197,94,0.55)';
+    ctx.beginPath(); ctx.ellipse(w*0.5,h*0.5,w*0.07,h*0.08,0,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function animateMetric(id, target, isFloat=true) {
+  const el = document.getElementById(id);
+  const tval = parseFloat(target);
+  let start = null;
+  const dur = 800;
+  const step = (ts) => {
+    if (!start) start = ts;
+    const p = Math.min((ts-start)/dur, 1);
+    const ease = 1-(1-p)**3;
+    el.textContent = isFloat ? (tval*ease).toFixed(1) : Math.round(tval*ease);
+    if (p < 1) requestAnimationFrame(step);
+    else el.textContent = target;
+  };
+  requestAnimationFrame(step);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/* ── Nav scroll effect ──────────────────────────── */
+window.addEventListener('scroll', () => {
+  const nav = document.getElementById('main-nav');
+  if (window.scrollY > 20) {
+    nav.style.boxShadow = '0 4px 30px rgba(0,0,0,0.3)';
+  } else {
+    nav.style.boxShadow = 'none';
+  }
+});
+
+/* ── Drag & Drop ────────────────────────────────── */
+const uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const fakeEvent = { target: { files: [file] } };
+    handleImageUpload(fakeEvent);
+  }
+});
+
+/* ── Check backend service ─────────────────────── */
+async function checkBackendService() {
+  try {
+    const response = await fetch('http://localhost:5000/api/health', {
+      method: 'GET'
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('后端服务状态:', data);
+      // 现在我们总是认为如果能连接上，就尽量使用后端
+      return {
+        connected: true,
+        modelLoaded: data.model_loaded,
+        modelsStatus: data.models_status
+      };
+    }
+    return { connected: false };
+  } catch (error) {
+    console.warn('无法连接到后端服务:', error);
+    return { connected: false };
+  }
+}
+
+/* ── Init ───────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', async () => {
+  initSampleImages();
+  
+  // Check backend service status
+  const backendStatus = await checkBackendService();
+  if (!backendStatus.connected) {
+    console.warn('后端服务未启动，将使用纯前端模拟推理');
+    localStorage.setItem('h2former-inference-mode', 'mock');
+    // 在UI上显示一个提示
+    const badge = document.querySelector('.hero-badge');
+    if (badge) badge.innerHTML = '<span class="hero-badge-dot" style="background:var(--accent-red)"></span> 后端未连接 (使用模拟模式)';
+  } else {
+    console.log('后端服务已就绪');
+    localStorage.setItem('h2former-inference-mode', 'backend');
+    
+    // 在UI上显示提示
+    const badge = document.querySelector('.hero-badge');
+    if (badge) {
+      const isMock = backendStatus.modelsStatus && backendStatus.modelsStatus[currentSegType] && backendStatus.modelsStatus[currentSegType].is_mock;
+      if (isMock) {
+        badge.innerHTML = '<span class="hero-badge-dot" style="background:var(--accent-orange)"></span> 后端已连接 (使用随机权重)';
+      } else {
+        badge.innerHTML = '<span class="hero-badge-dot" style="background:var(--accent-green)"></span> 后端服务就绪 (Real weights)';
+      }
+    }
+  }
+});
+
+</script>
+</body>
+</html>
