@@ -18,22 +18,19 @@ if not exist venv (
     python -m venv venv
 )
 
-echo 激活虚拟环境...
-call venv\Scripts\activate.bat
-
 echo 安装依赖...
-pip install -r requirements.txt
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
 
 echo.
 echo ========================================
 echo 启动Flask后端服务...
-echo 服务地址: http://localhost:5000
-echo API文档: http://localhost:5000/api/health
+echo 服务地址: http://localhost:8080
+echo API文档: http://localhost:8080/api/health
 echo ========================================
 echo.
 
 REM 启动Flask服务
-python app.py
+.\venv\Scripts\python.exe app.py
 
 echo.
 pause
